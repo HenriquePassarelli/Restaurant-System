@@ -5,10 +5,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// generator erd {
-//     provider = "prisma-erd-generator"
-// }
-
 datasource db {
   provider = "mongodb"
   url      = env("DATABASE_URL")
@@ -19,22 +15,53 @@ model User {
   userName  String   @unique
   password  String   @db.String()
   name      String?
-  rolesId   String[] @db.ObjectId
   createdAt DateTime @default(now())
+  lasChange DateTime @default(now())
 
-  roles Role[] @relation(fields: [rolesId], references: [id] )
+  rolesId String[] @db.ObjectId
 
+  roles  Role[]  @relation(fields: [rolesId], references: [id])
+  tables Table[] @relation()
+
+  @@index([rolesId])
   @@map("user")
-  // @@index([rolesId])
 }
 
 model Role {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String   @unique
-  usersId   String[] @map("userId") @db.ObjectId
-  createdAt DateTime @default(now())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  description String?  @default("")
+  createdAt   DateTime @default(now())
+  lasChange   DateTime @default(now())
+
+  usersId String[] @map("users") @db.ObjectId
 
   users User[] @relation(fields: [usersId], references: [id])
 
+  @@index([usersId])
   @@map("role")
+}
+
+model Table {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  alias     String
+  createdAt DateTime @default(now())
+  lasChange DateTime @default(now())
+
+  userId String[] @map("user") @db.ObjectId
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("table")
+}
+
+model Product {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  price       Float
+  description String?  @default("")
+  createdAt   DateTime @default(now())
+  lasChange   DateTime @default(now())
+
+  @@map("product")
 }

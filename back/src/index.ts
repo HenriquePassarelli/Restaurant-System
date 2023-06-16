@@ -4,6 +4,8 @@ import morgan from 'morgan'
 import dotenv from 'dotenv'
 import usersRoutes from './routes/usersRoutes'
 import rolesRoutes from './routes/rolesRoutes'
+import productsRoutes from './routes/productsRoutes'
+
 import bodyParser from 'body-parser'
 
 dotenv.config()
@@ -17,12 +19,9 @@ server.use(express.json())
 server.use(bodyParser.json())
 server.use(morgan('dev'))
 
-// server.use('/', (_, res) => {
-//   return res.send('Working').end()
-// })
-
 server.use('/user', usersRoutes)
 server.use('/role', rolesRoutes)
+server.use('/products', productsRoutes)
 
 server.listen(port, () => {
   console.log(`Server running on port ${port}`)

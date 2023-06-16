@@ -5,10 +5,13 @@ import { prisma } from '../lib/prisma'
 import { Encrypt } from '../lib/encrypt'
 import { isValidObjectId } from 'mongoose'
 import jwt from 'jsonwebtoken'
+import { privateKey } from '../constants/auth'
+import { Roles } from '../constants/roles'
+import { validateRole } from '../middleware/authorizations'
 
 const routes = express.Router()
 
-routes.get('/', async (req: Request, res: Response) => {
+routes.get('/', validateRole(Roles.ADMIN), async (req: Request, res: Response) => {
   const data = await prisma.user.findMany()
 
   data.forEach((user) => {
@@ -18,7 +21,7 @@ routes.get('/', async (req: Request, res: Response) => {
   return res.send(data)
 })
 
-routes.post('/', async (req: Request, res: Response) => {
+routes.post('/', validateRole(Roles.ADMIN), async (req: Request, res: Response) => {
   const bodyParse = z.object({
     userName: z.string(),
     password: z.string(),
@@ -27,8 +30,6 @@ routes.post('/', async (req: Request, res: Response) => {
   })
 
   const { userName, name, password, roles } = bodyParse.parse(req.body)
-
-  // validate roles
 
   let checkRoles = []
   try {
@@ -40,7 +41,7 @@ routes.post('/', async (req: Request, res: Response) => {
       },
     })
 
-    if (checkRoles.length <= 0) return res.status(400).send('No roles found')
+    if (checkRoles.length <= 0 || roles.length != checkRoles.length) return res.status(400).send('No roles found')
   } catch (error) {
     return res.send(error).status(400)
   }
@@ -51,6 +52,9 @@ routes.post('/', async (req: Request, res: Response) => {
     const data = await prisma.user.create({
       data: { userName, password: cryptPassword, name, rolesId: checkRoles.map((r) => r.id) },
     })
+
+    await prisma.role.updateMany({ where: { id: { in: roles } }, data: { usersId: data.id } })
+
     return res.send(exclude(data, ['password']))
   } catch (error) {
     return res.send(error).status(400)
@@ -64,28 +68,36 @@ routes.post('/login', async (req: Request, res: Response) => {
   })
   const { userName, password } = bodyParse.parse(req.body)
 
-  const user = await prisma.user.findUniqueOrThrow({
-    where: {
-      userName,
-    },
-  })
+  let user
+
+  try {
+    user = await prisma.user.findUniqueOrThrow({
+      where: {
+        userName,
+      },
+    })
+  } catch (error) {
+    return res.status(400).send({ message: 'User not found' })
+  }
 
   const isValid = await Encrypt.comparePassword(password, user.password)
 
   if (!isValid) return res.status(401).send()
 
-  const privateKey = process.env.PRIVATE_KEY || 'privatekey'
+  const roles = await prisma.role.findMany({ where: { id: { in: user.rolesId } } })
 
-  const noPasswordUser = exclude(user, ['password'])
+  const replacedUser = exclude(user, ['password', 'rolesId'])
 
-  jwt.sign(noPasswordUser, privateKey, (err, token) => {
+  const userInfo = { ...replacedUser, roles: roles.map((r) => r.name) }
+
+  jwt.sign(userInfo, privateKey, (err, token) => {
     if (err) return res.status(500).json({ message: 'Error creating JWT' })
 
-    return res.set('x-access-token', token).status(200).send(noPasswordUser)
+    return res.set('x-access-token', token).status(200).send(userInfo)
   })
 })
 
-routes.delete('/:id', async (req: Request, res: Response) => {
+routes.delete('/:id', validateRole(Roles.ADMIN), async (req: Request, res: Response) => {
   const paramParse = z.object({
     id: z.string(),
   })
@@ -95,7 +107,11 @@ routes.delete('/:id', async (req: Request, res: Response) => {
   if (!isIDValid) return res.status(400).send({ message: `Invalid ID provided` })
 
   try {
-    await prisma.user.findFirstOrThrow({ where: { id } })
+    const user = await prisma.user.findFirstOrThrow({ where: { id } })
+
+    // const roles = await prisma.role.findMany({ where: { id: { in: user.rolesId } } })
+    // Promise.all([user.rolesId.map((id) => prisma.role.update({ where: { id }, data: { usersId: { set } } }))])
+    // await prisma.role.updateMany({ where: { id: { in: user.rolesId } }, data: { usersId: { set } } })
   } catch (err) {
     return res.status(404).send({ message: (err as Error)?.message })
   }

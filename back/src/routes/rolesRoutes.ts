@@ -1,17 +1,17 @@
 import express, { Request, Response } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
-import { validateUser } from '../middleware/authorizations'
+import { validateRole } from '../middleware/authorizations'
+import { Roles } from '../constants/roles'
 
 const routes = express.Router()
 
-routes.get('/', validateUser, async (req: Request, res: Response) => {
-  console.log(req.userInfo)
+routes.get('/', validateRole(Roles.ADMIN), async (req: Request, res: Response) => {
   const data = await prisma.role.findMany()
   return res.send(data)
 })
 
-routes.post('/', async (req: Request, res: Response) => {
+routes.post('/', validateRole(Roles.ADMIN), async (req: Request, res: Response) => {
   const bodyParse = z.object({
     name: z.string(),
   })
