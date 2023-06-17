@@ -6,10 +6,14 @@ import { validateUser, validateRole } from '../middleware/authorizations'
 
 const routes = express.Router()
 
-routes.get('/', validateUser, async (req: Request, res: Response) => {
-  const data = await prisma.product.findMany()
+routes.get('/', validateUser(), async (req: Request, res: Response) => {
+  try {
+    const data = await prisma.product.findMany()
 
-  return res.send(data)
+    return res.send(data)
+  } catch (error) {
+    return res.status(500).send(error)
+  }
 })
 
 routes.post('/', validateRole(Roles.ADMIN), async (req: Request, res: Response) => {
@@ -18,6 +22,7 @@ routes.post('/', validateRole(Roles.ADMIN), async (req: Request, res: Response) 
     price: z.number(),
     description: z.string().optional(),
   })
+
   const data = bodyParse.parse(req.body)
 
   try {
@@ -37,7 +42,7 @@ routes.put('/', validateRole(Roles.ADMIN), async (req: Request, res: Response) =
   })
   const { id, ...data } = bodyParse.parse(req.body)
   try {
-    const product = await prisma.product.update({ where: { id }, data: data })
+    const product = await prisma.product.update({ where: { id }, data: { ...data, updatedAt: new Date() } })
     return res.send(product)
   } catch (error) {
     return res.status(400).send(error)

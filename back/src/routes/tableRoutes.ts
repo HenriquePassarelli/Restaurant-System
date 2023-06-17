@@ -11,16 +11,33 @@ import { validateUser, validateRole } from '../middleware/authorizations'
 
 const routes = express.Router()
 
-routes.get('/', validateUser, async (req: Request, res: Response) => {
-  const data = await prisma.table.findMany()
+routes.get('/', validateUser(), async (req: Request, res: Response) => {
+  try {
+    const data = await prisma.table.findMany()
 
-  return res.send(data)
+    return res.send(data)
+  } catch (error) {
+    return res.status(500).send(error)
+  }
 })
 
-routes.post('/', validateUser, async (req: Request, res: Response) => {
-  const data = await prisma.table.findMany()
+routes.post('/', validateUser(), async (req: Request, res: Response) => {
+  const bodyParse = z.object({
+    alias: z.string(),
+  })
 
-  return res.send(data)
+  const { alias } = bodyParse.parse(req.body)
+  const user = res.locals.user as { id: string; roles: string[] }
+
+  try {
+    const data = await prisma.table.create({
+      data: { alias, userId: user.id },
+    })
+
+    return res.send(data)
+  } catch (error) {
+    return res.status(500).send(error)
+  }
 })
 
 routes.delete('/:id', validateRole(Roles.ADMIN), async (req: Request, res: Response) => {
@@ -32,3 +49,5 @@ routes.delete('/:id', validateRole(Roles.ADMIN), async (req: Request, res: Respo
 
   return res.send(data)
 })
+
+export default routes

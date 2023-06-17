@@ -1,3 +1,4 @@
+import { User } from '@prisma/client'
 import express, { Request, Response } from 'express'
 import { z } from 'zod'
 import { exclude } from '../utils'
@@ -12,7 +13,12 @@ import { validateRole } from '../middleware/authorizations'
 const routes = express.Router()
 
 routes.get('/', validateRole(Roles.ADMIN), async (req: Request, res: Response) => {
-  const data = await prisma.user.findMany()
+  let data
+  try {
+    data = await prisma.user.findMany()
+  } catch (error) {
+    return res.status(500).send(error)
+  }
 
   data.forEach((user) => {
     exclude(user, ['password'])
@@ -90,11 +96,18 @@ routes.post('/login', async (req: Request, res: Response) => {
 
   const userInfo = { ...replacedUser, roles: roles.map((r) => r.name) }
 
-  jwt.sign(userInfo, privateKey, (err, token) => {
-    if (err) return res.status(500).json({ message: 'Error creating JWT' })
+  jwt.sign(
+    { id: userInfo.id, roles: userInfo.roles },
+    privateKey,
+    {
+      expiresIn: '1d',
+    },
+    (err, token) => {
+      if (err) return res.status(500).json({ message: 'Error creating JWT' })
 
-    return res.set('x-access-token', token).status(200).send(userInfo)
-  })
+      return res.set('x-access-token', token).status(200).send(userInfo)
+    }
+  )
 })
 
 routes.delete('/:id', validateRole(Roles.ADMIN), async (req: Request, res: Response) => {
