@@ -9,6 +9,11 @@ interface UserInfo extends User {
   roles: Array<Role['name']>
 }
 
+/**
+ * Validate if it has a logged user, if the token is valid, and if the role matches
+ *
+ * @param role The intended role to validate
+ */
 export const validateRole = (role: Roles) => {
   return (req: Request<{ userInfo: string }>, res: Response, next: NextFunction) => {
     const authHeader = req.headers['authorization']
@@ -33,6 +38,9 @@ export const validateRole = (role: Roles) => {
   }
 }
 
+/**
+ * Validate if it has a logged user, and if the token is valid
+ */
 export const validateUser = () => {
   return (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
     const authHeader = req.headers['authorization']

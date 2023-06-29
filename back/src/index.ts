@@ -7,6 +7,7 @@ import usersRoutes from './routes/usersRoutes'
 import rolesRoutes from './routes/rolesRoutes'
 import productsRoutes from './routes/productsRoutes'
 import tableRoutes from './routes/tableRoutes'
+import orderRoutes from './routes/orderRoutes'
 
 dotenv.config()
 
@@ -23,6 +24,7 @@ server.use('/user', usersRoutes)
 server.use('/role', rolesRoutes)
 server.use('/products', productsRoutes)
 server.use('/table', tableRoutes)
+server.use('/order', orderRoutes)
 
 server.listen(port, () => {
   console.log(`Server running on port ${port}`)
